@@ -66,6 +66,7 @@ void navigation_solution_task(void *pvParameters)
 {
     int do_imu_flag = 0;//是否做惯导标志
 
+
     //等待GPS和IMU启动完成
 
     //等待GPS数据有效
