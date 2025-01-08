@@ -190,22 +190,32 @@ void navigation_solution_task(void *pvParameters)
                 else if (total_cols > QUEUE_SIZE) 
                 {
                     // 超过QUEUE_SIZE个值后即刻开始导航解算更新
+
+                    // 复制 u 的前 window_size 列到 u_h （零速检测需要用到window_size列imu数据）
+                    precision** u_h = (precision**)malloc(6 * sizeof(precision*));
+                    for (int i = 0; i < 6; i++) {
+                        u_h[i] = (precision*)malloc(window_size * sizeof(precision));
+                        memcpy(u_h[i], u_data[i], window_size * sizeof(precision));
+                    }
+
+                    // 复制Angle_data[0][0]给Angle_data_temp
+                    precision Angle_data_temp = Angle_data[0][0];
+
                     //零速监测
                     zero_velocity_detector(u_data, window_size , zupt + total_cols - QUEUE_SIZE, T + total_cols - QUEUE_SIZE);
 
                     //姿态解算的正式部分
                     {
-
-                        // 复制一个k次采样的向量存储传感器值。
-                        precision** u_h = (precision**)malloc(6 * sizeof(precision*));
-                        for (int i = 0; i < 6; i++) {
-                            u_h[i] = (precision*)malloc(1 * sizeof(precision));
-                            u_h[i][0] = u_data[i][0];
-                        }
+                        // // 复制一个k次采样的向量存储传感器值。
+                        // precision** u_h = (precision**)malloc(6 * sizeof(precision*));
+                        // for (int i = 0; i < 6; i++) {
+                        //     u_h[i] = (precision*)malloc(1 * sizeof(precision));
+                        //     u_h[i][0] = u_data[i][0];
+                        // }
 
                         // 更新导航方程  x_h_new是结果  用x_h[0]作为基数，更新x_h[1]
                         precision* x_h_new = (precision*)malloc(9 * sizeof(precision));
-                        Navigation_equations(x_h[total_cols - QUEUE_SIZE - 1], u_h, quat, x_h_new, Angle_data[0][0]);
+                        Navigation_equations(x_h[total_cols - QUEUE_SIZE - 1], u_h, quat, x_h_new, Angle_data_temp);
                         memcpy(x_h[total_cols - QUEUE_SIZE], x_h_new, 9 * sizeof(precision));
                         free(x_h_new);
 
@@ -246,7 +256,7 @@ void navigation_solution_task(void *pvParameters)
                             }
 
                             // 使用估计的扰动修正导航状态
-                            comp_internal_states(x_h[total_cols - QUEUE_SIZE], dx, quat, Angle_data[0][0]);
+                            comp_internal_states(x_h[total_cols - QUEUE_SIZE], dx, quat, Angle_data_temp);
                             
                             // 更新状态协方差矩阵P
                             update_state_covariance(K, H, P, Id, cov, total_cols - QUEUE_SIZE);
